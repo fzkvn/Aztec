@@ -8,34 +8,33 @@ A simple, all-in-one Bash script to install, configure, and manage your **Aztec 
 
 ## 📋 Prerequisites
 
-- A Debian/Ubuntu-based system (tested on 20.04+)
-- **screen** (for a resilient terminal session)
-- **bash** shell (v4+)
-- **git**
+- **OS**: Debian/Ubuntu-based system (tested on 20.04+)
+- **Terminal**: `bash` (v4+) and [`screen`](https://tiswww.case.edu/php/chet/screen/) for a resilient session
+- **Version Control**: `git`
+- **Machine Specs**: 8‑Core CPU, 16 GiB RAM, 1 TB NVMe SSD
+- **Network**: ≥25 Mbps up/down bandwidth (typical consumer desktop or laptop is sufficient)
+- **Server Requirements**: Ensure these specs are met; if not, reach out for assistance.
+- **RPC Endpoint**: For best performance, use a paid Ankr RPC. For a free alternative, try DRPC: https://drpc.org?ref=523696
 
-> **Tip:** Use `screen` so your node keeps running even if you disconnect.
+> **Tip:** Start in `screen` so your node keeps running even if you disconnect:
+> ```bash
+> screen -S aztec
+> ```
 
-- **Server Requirements:** Ensure your server meets the minimum requirements for CPU, memory, and storage. If you're all set, proceed; otherwise, reach out and I'll assist you further.
-- **Recommended RPC Endpoints:** For best performance, use a paid Ankr RPC endpoint. If you prefer a free option, try DRPC: https://drpc.org?ref=523696
-
-- **Network Port**: By default, the Aztec node's JSON-RPC API listens on `localhost:8080`. Ensure port 8080 is free and not occupied by another service. If you're running a firewall, allow traffic on this port (or bind to another available port by updating the `start_node()` command accordingly).
+---
 
 ## 🚀 Quick Start
 
-1. **Launch a screen session** (recommended):
-   ```bash
-   screen -S aztec
-   ```
-2. **Clone this repository**:
+1. **Clone the repository**:
    ```bash
    git clone https://github.com/fzkvn/aztec-network.git
    cd aztec-network
    ```
-3. **Make the script executable**:
+2. **Make the manager script executable**:
    ```bash
    chmod +x manage_node.sh
    ```
-4. **Run the manager**:
+3. **Run the manager**:
    ```bash
    ./manage_node.sh
    ```
@@ -44,7 +43,7 @@ A simple, all-in-one Bash script to install, configure, and manage your **Aztec 
 
 ## 📖 Menu & Commands
 
-When you run `manage_node.sh`, you’ll see a menu:
+Upon running `./manage_node.sh`, you’ll see:
 
 ```
 1) Setup Node Validator
@@ -59,26 +58,24 @@ When you run `manage_node.sh`, you’ll see a menu:
 x) Exit
 ```
 
-Below is what each option does:
-
-| Option | Command              | Description                                                                                               |
-|:------:|----------------------|-----------------------------------------------------------------------------------------------------------|
-| **1**  | `setup`              | Installs dependencies, Docker, Aztec CLI; configures `.env`; starts your validator node.                 |
-| **2**  | `get_apprentice`     | Fetches the latest L2 tip block and proof for your apprentice role.                                       |
-| **3**  | `register_validator` | Registers your validator on L1 using your public and private keys.                                        |
-| **4**  | `stop_node`          | Stops the local Aztec node process and removes its Docker containers.                                     |
-| **5**  | `restart_node`       | Stops then restarts the node, preserving your `.env` settings.                                            |
-| **6**  | `change_rpc`         | Prompts to update RPC & Beacon URLs in `.env`, then restarts the node.                                    |
-| **7**  | `wipe_data`          | Deletes local blockchain data and restarts the node (fresh sync).                                          |
-| **8**  | `full_clean`         | Stops node, removes all Aztec CLI data and `.env` (reset environment).                                    |
-| **9**  | `reinstall_node`     | Runs **Stop → Full Clean → Setup** in one step for a full reinstallation.                                 |
-| **x**  | Exit                 | Exit the script.                                                                                          |
+| Option | Command              | Description                                                                                 |
+|:------:|----------------------|---------------------------------------------------------------------------------------------|
+| **1**  | `setup`              | Installs dependencies, Docker, Aztec CLI; saves `.env`; starts your validator node.         |
+| **2**  | `get_apprentice`     | Fetches the latest L2 tip block and proof.                                                 |
+| **3**  | `register_validator` | Registers your validator on L1 with your keys.                                             |
+| **4**  | `stop_node`          | Stops the Aztec node process and removes Docker containers.                                 |
+| **5**  | `restart_node`       | Restarts your node, preserving config.                                                      |
+| **6**  | `change_rpc`         | Updates RPC/Beacon URLs in `.env`, then restarts the node.                                 |
+| **7**  | `wipe_data`          | Deletes local chain data only, allowing a fresh sync without full reinstall.                |
+| **8**  | `full_clean`         | Stops node and removes all Aztec CLI data plus `.env` (complete reset).                    |
+| **9**  | `reinstall_node`     | Runs **Stop → Full Clean → Setup**, automatically clearing port locks and reinstalling.    |
+| **x**  | Exit                 | Exit the script.                                                                            |
 
 ---
 
 ## 🔒 Environment File (`.env`)
 
-After setup, a file named `.env` is created in the repo root:
+Created at repo root during setup:
 
 ```ini
 RPC_URL="<YOUR_SEPOLIA_RPC_URL>"
@@ -88,33 +85,56 @@ PRIVATE_KEY="<YOUR_VALIDATOR_PRIVATE_KEY>"
 P2P_IP="<YOUR_NODE_IP>"
 ```
 
-Keep this file secret! It contains your private key.
+Keep this file secure—**it contains your private key**.
 
 ---
 
 ## 🔑 Secure Input Handling
 
-When prompted for your **Validator PRIVATE key**, the script uses hidden input (`read -rsp`), so your key will **not** be echoed on-screen. Just paste it once and press **Enter**, and it will be stored securely in `.env`.
+When entering your **Validator PRIVATE key**, the script uses hidden input (`read -rsp`), so it will **not** be echoed on-screen. Just paste once and press **Enter**.
 
 ---
 
 ## 🛠️ Common Issues & Solutions
 
-- **Port 8080 Already in Use**:
-  - **Solution:** Choose option **9) Reinstall Node**. This will automatically stop any processes holding port 8080 and restart your node cleanly. Once done, ensure port 8080 is free and rerun option **9** if needed.
+- **Port 8080 In Use**:
+  - If the JSON-RPC port (8080) is occupied, choose **9) Reinstall Node**, which will clear the lock and restart on a clean port.
 
-- **Block Stream Stuck** (“world block stream issue”)**:
-  - **Solution:** Choose option **7) Delete Node Data** (`wipe_data`). This removes only the local blockchain data while preserving your config, allowing a fresh sync without a full reinstall.
+- **Stuck Block Stream**:
+  - Choose **7) Delete Node Data** to remove only the local chain data for a fresh sync without losing your config.
 
-- **Get Role Apprentice Not Returning Block / Proof****:
-  - **Solution:** If option **2) Get Role Apprentice** fails to fetch the latest block or proof, run **9) Reinstall Node** to reset and then rerun option **2**.
+- **Old Proof / RPC Errors**:
+  - Choose **6) Change RPC** and provide a new RPC URL (Ankr or DRPC) to refresh proofs.
 
-- **Block Stream Stuck (“world block stream issue”)**:
-  - **Solution:** Choose option **7) Delete Node Data** (`wipe_data`). This removes only the local blockchain data while preserving your config, allowing a fresh sync without a full reinstall.
+- **Get Role Apprentice Missing Data**:
+  - If option **2** fails, run **9) Reinstall Node** to reset and retry.
 
-- **Proof Too Old / RPC Errors**:
-  - **Solution 1:** Choose option **6) Change RPC** and enter a new, healthy RPC endpoint (e.g., a paid Ankr or free DRPC) to refresh and retrieve up‑to‑date proofs.
-  - **Solution 2:** Use **9) Reinstall Node** to fully stop, clean, and set up again, then provide a new, reliable RPC URL during setup.
+- **P2P “goodbye” Error Message**:
+  - If you see a `p2p error in with aztec/req/goodbye`, your node is fine—this is a benign message.
+
+---
+
+## ⚙️ Behind the Scenes
+
+- **install_dependencies()**:
+  1. Detects and kills any processes locking **apt** or **dpkg**.
+  2. Updates packages and installs core tools (`curl`, `git`, `tmux`, etc.).
+  3. Sets up the official Docker repo and installs Docker Engine.
+
+- **setup()**:
+  1. Runs `install_dependencies()`.
+  2. Installs Aztec CLI via `curl -sSf https://install.aztec.network | bash`.
+  3. Executes `aztec-up alpha-testnet`.
+  4. Prompts and saves your RPC, Beacon URL, public/private keys, and P2P IP to `.env`.
+  5. Launches the node with these settings.
+
+- **Other Functions** handle node stop/restart, data wipe, and validator registration as per the menu.
+
+---
+
+## 📝 License
+
+Licensed under the **MIT License**. See [LICENSE](LICENSE) for details.
 
 ---
 
