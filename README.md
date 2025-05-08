@@ -1,98 +1,120 @@
-# Aztec Alpha-Testnet Validator Manager
+# Aztec Network Validator Manager
 
-A single, menu-driven `manage_node.sh` script to **install**, **configure**, **manage**, and **inspect** your Aztec Alpha-Testnet validator—all in one place.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![Shell](https://img.shields.io/badge/Shell-Bash-green.svg)](https://www.gnu.org/software/bash/)
 
-## 📦 Clone the Repo
-
-```bash
-# Clone your fork (replace with your GitHub URL if needed)
-git clone https://github.com/fzkvn/aztec-network.git
-cd aztec-network
-```
-
-## 🔧 Make Executable
-
-```bash
-chmod +x manage_node.sh
-```
-
-## 🚀 Run the Script
-
-```bash
-./manage_node.sh
-```
-
-You'll see a Menu Options, Choose that by type the number and press enter.
+A simple, all-in-one Bash script to install, configure, and manage your **Aztec Alpha-Testnet** validator node.
 
 ---
 
-## 📖 Menu Options Breakdown
+## 📋 Prerequisites
 
-| Option | Command                  | Description                                                                                                                                                                           |
-| ------ | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1      | **Setup Node Validator** | Installs Aztec CLI, switches to alpha-testnet, prompts for your RPC URLs, keys, auto-detects your public IP, saves to `.env`, and **starts the node** in a `screen -S aztec` session. |
-| 2      | **Get Role Apprentice**  | Fetches the latest proven block number and generates your sync-proof via RPC calls. Displays **Address**, **Block-Number**, and **Proof** for `/operator start` in Discord.           |
-| 3      | **Register Validator**   | Uses your saved `.env` values to submit an `aztec add-l1-validator` transaction on Sepolia.                                                                                           |
-| 4      | **Stop Node**            | Stops the `screen` session and any Docker proxies for Aztec.                                                                                                                          |
-| 5      | **Restart Node**         | Re-reads `.env` and restarts the node in `screen -S aztec`, ensuring logs persist in `aztec_node.log`.                                                                                |
-| 6      | **Change RPC**           | Prompts for new RPC URLs, updates `.env`, and restarts the node.                                                                                                                      |
-| 7      | **Delete Node Data**     | Wipes only the local chain data directory (`~/.aztec/alpha-testnet/data`) and restarts the node.                                                                                      |
-| 8      | **Full Clean**           | Completely removes the Aztec CLI installation, guide folder, logs, and config (`.env` & logs).                                                                                        |
-| 9      | **Reinstall Node**       | Stops everything, kills any leftover Docker proxies, deletes all data & config, then runs **Setup** from scratch.                                                                     |
-| 10     | **Git Pull**             | Updates the `aztec-network` guide repository via `git pull --ff-only`.                                                                                                                |
-| 0      | **Show Logs / Attach**   | If `screen -S aztec` is running, re-attaches it; otherwise, tails `aztec_node.log`.                                                                                                   |
-| x      | **Exit**                 | Quit the script.                                                                                                                                                                      |
+- A Debian/Ubuntu-based system (tested on 20.04+)
+- **screen** (for a resilient terminal session)
+- **bash** shell (v4+)
+- **git**
+
+> **Tip:** Use `screen` so your node keeps running even if you disconnect.
+
+
+## 🚀 Quick Start
+
+1. **Launch a screen session** (recommended):
+   ```bash
+   screen -S aztec
+   ```
+2. **Clone this repository**:
+   ```bash
+   git clone https://github.com/fzkvn/aztec-network.git
+   cd aztec-network
+   ```
+3. **Make the script executable**:
+   ```bash
+   chmod +x manage_node.sh
+   ```
+4. **Run the manager**:
+   ```bash
+   ./manage_node.sh
+   ```
 
 ---
 
-## 📄 Configuration File
+## 📖 Menu & Commands
 
-All configuration lives in a **single** `.env` file:
+When you run `manage_node.sh`, you’ll see a menu:
+
+```
+1) Setup Node Validator
+2) Get Role Apprentice
+3) Register Validator
+4) Stop Node
+5) Restart Node
+6) Change RPC
+7) Delete Node Data
+8) Full Clean
+9) Reinstall Node
+x) Exit
+```
+
+Below is what each option does:
+
+| Option | Command              | Description                                                                                  |
+|:------:|----------------------|----------------------------------------------------------------------------------------------|
+| **1**  | `setup`              | Installs dependencies, Docker, Aztec CLI; configures `.env`; starts your validator node.    |
+| **2**  | `get_apprentice`     | Fetches the latest L2 tip block and proof for your apprentice role.                          |
+| **3**  | `register_validator` | Registers your validator on L1 using your public and private keys.                           |
+| **4**  | `stop_node`          | Stops the local Aztec node process and removes its Docker containers.                        |
+| **5**  | `restart_node`       | Stops then restarts the node, preserving your `.env` settings.                               |
+| **6**  | `change_rpc`         | Prompts to update RPC & Beacon URLs in `.env`, then restarts the node.                       |
+| **7**  | `wipe_data`          | Deletes local blockchain data and restarts the node (fresh sync).                            |
+| **8**  | `full_clean`         | Stops node, removes all Aztec CLI data and `.env` (reset environment).                       |
+| **9**  | `reinstall_node`     | Runs **Stop → Full Clean → Setup** in one step for a full reinstallation.                    |
+| **x**  | Exit                 | Exit the script.                                                                             |
+
+
+## ⚙️ Behind the Scenes
+
+- **install_dependencies()**:
+  1. Detects & kills any processes holding **apt** or **dpkg** locks, to avoid hangs.
+  2. Updates package lists and upgrades installed packages.
+  3. Installs core tools: `curl`, `git`, `build-essential`, `tmux`, etc.
+  4. Sets up the official Docker repository and installs Docker Engine.
+
+- **setup()**:
+  1. Calls `install_dependencies()`.
+  2. Installs the Aztec CLI if not present: `curl -sSf https://install.aztec.network | bash`.
+  3. Runs `aztec-up alpha-testnet`.
+  4. Prompts for and saves:
+     - **Sepolia RPC URL**
+     - **Sepolia Beacon URL**
+     - **Validator PUBLIC key**
+     - **Validator PRIVATE key**
+     - **P2P IP** (auto-detected or manually entered)
+  5. Persists credentials in a secured `.env` file.
+  6. Launches the node with your settings.
+
+- **Other Functions** mirror the menu options, handling node stop/restart, data wipe, and validator registration.
+
+
+## 🔒 Environment File (`.env`)
+
+After setup, a file named `.env` is created in the repo root:
 
 ```ini
-RPC_URL=YOUR_SEPOLIA_EXECUTION_RPC_URL
-RPC_BEACON_URL=YOUR_SEPOLIA_BEACON_RPC_URL
-PUBLIC_KEY=0xYourValidatorAddress
-PRIVATE_KEY=0xYourValidatorPrivateKey
-P2P_IP=your.public.ip.address
+RPC_URL="<YOUR_SEPOLIA_RPC_URL>"
+RPC_BEACON_URL="<YOUR_BEACON_RPC_URL>"
+PUBLIC_KEY="<YOUR_VALIDATOR_PUBLIC_KEY>"
+PRIVATE_KEY="<YOUR_VALIDATOR_PRIVATE_KEY>"
+P2P_IP="<YOUR_NODE_IP>"
 ```
 
-* Saved with permissions `600` (owner read/write only) for security.
-* **Never** commit `.env` to version control.
+Keep this file secret! It contains your private key.
 
 ---
 
-## 📜 Inspecting Your Node
+## 📝 License
 
-* **Attach to Screen**:
-
-  ```bash
-  screen -r aztec
-  ```
-
-  (Press `Ctrl-A` then `D` to detach.)
-
-* **Tail Logs**:
-
-  ```bash
-  tail -f aztec_node.log
-  ```
+This project is licensed under the **MIT License**. See [LICENSE](LICENSE) for details.
 
 ---
 
-## 🛠️ Requirements
-
-* **Bash** (Linux/macOS)
-* `curl`, `git`, `screen`, `docker` installed
-* `jq` (JSON parser) for **Get Role Apprentice**
-
----
-
-## ⚠️ Security Notes
-
-* Keep your `PRIVATE_KEY` safe—only stored locally in `.env`.
-* Scripts run with `set -euo pipefail` to fail fast on errors.
-
----
-
-**Happy validating on Aztec Alpha-Testnet!** 🚀
+*Happy validating!* 😀
