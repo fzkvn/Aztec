@@ -4,10 +4,39 @@
 
 set -euo pipefail
 
-# ANSI colors
+# === Dependency Check ===
+# Ensure required commands are installed: git, curl, screen, docker, jq
 RED="\033[0;31m"
 GREEN="\033[0;32m"
 YELLOW="\033[1;33m"
+RESET="\033[0m"
+missing=false
+for cmd in git curl screen docker jq; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    missing=true
+    echo -e "${YELLOW}Dependency '$cmd' not found.${RESET}"
+    read -rp "Install '$cmd' now? [Y/n] " ans
+    ans=${ans:-Y}
+    if [[ "$ans" =~ ^[Yy]$ ]]; then
+      if command -v apt-get >/dev/null 2>&1; then
+        sudo apt-get update && sudo apt-get install -y "$cmd"
+      elif command -v yum >/dev/null 2>&1; then
+        sudo yum install -y "$cmd"
+      else
+        echo -e "${RED}No supported package manager found. Please install '$cmd' manually.${RESET}" >&2
+        exit 1
+      fi
+    else
+      echo -e "${RED}Cannot continue without '$cmd'. Exiting.${RESET}" >&2
+      exit 1
+    fi
+  fi
+done
+if [ "$missing" = false ]; then
+  echo -e "${GREEN}All dependencies are present.${RESET}"
+fi
+
+# ANSI colors
 BLUE="\033[0;34m"
 BOLD="\033[1m"
 RESET="\033[0m"
@@ -18,7 +47,7 @@ ENV_FILE=".env"
 LOG_FILE="aztec_node.log"
 ARCHIVE_DATA_DIR="$HOME/.aztec/alpha-testnet/data"
 
-# All-in-one Aztec Alpha-Testnet Validator Manager by KEVIN
+# Print ASCII banner by KEVIN
 print_banner() {
   cat <<'EOF'
    .  . .  .  . .  .  . .  .  . .  . . .  .  . .  .  . .  .  . .  .  .
@@ -65,10 +94,12 @@ print_banner() {
 EOF
 }
 
-# Load and save env
+# Load .env if exists
 _load_env() {
   [ -f "$ENV_FILE" ] && . "$ENV_FILE"
 }
+
+# Save config to .env
 _save_env() {
   cat > "$ENV_FILE" <<EOF
 RPC_URL="$RPC_URL"
@@ -80,14 +111,16 @@ EOF
   chmod 600 "$ENV_FILE"
 }
 
-# Ensure jq is installed
+# Ensure jq is installed (used by get_apprentice)
 _require_jq() {
   if ! command -v jq >/dev/null 2>&1; then
     echo -e "${YELLOW}Installing jq...${RESET}"
-    if command -v apt-get >/dev/null; then
+    if command -v apt-get >/dev/null 2>&1; then
       sudo apt-get update && sudo apt-get install -y jq
+    elif command -v yum >/dev/null 2>&1; then
+      sudo yum install -y jq
     else
-      echo -e "${RED}Please install jq manually.${RESET}" >&2
+      echo -e "${RED}Please install 'jq' manually.${RESET}" >&2
       exit 1
     fi
   fi
@@ -112,7 +145,7 @@ setup() {
   echo -n "→ Validator PUBLIC key:       " && read -r PUBLIC_KEY
   echo -n "→ Validator PRIVATE key:      " && stty -echo; read -r PRIVATE_KEY; stty echo; echo
 
-  # Auto-detect IP
+  # Detect public IP
   P2P_IP=$(curl -sS ipv4.icanhazip.com || echo "")
   [ -z "$P2P_IP" ] && { echo -n "→ Public IP: "; read -r P2P_IP; }
 
@@ -125,139 +158,25 @@ setup() {
 }
 
 # 2) Get Role Apprentice
-get_apprentice() {
-  echo -e "${GREEN}${BOLD}=== (2) Get Role Apprentice ===${RESET}"
-  _require_jq
-
-  echo -e "Step 1: Fetch proven block number..."
-  block=$(curl -s -X POST -H 'Content-Type: application/json' \
-    -d '{"jsonrpc":"2.0","method":"node_getL2Tips","params":[],"id":1}' \
-    http://localhost:8080 | jq -r ".result.proven.number")
-  echo -e "→ Proven block: ${YELLOW}$block${RESET}"
-
-  echo -e "Step 2: Generate sync proof..."
-  proof=$(curl -s -X POST -H 'Content-Type: application/json' \
-    -d "{\"jsonrpc\":\"2.0\",\"method\":\"node_getArchiveSiblingPath\",\"params\":[\"$block\",\"$block\"],\"id\":1}" \
-    http://localhost:8080 | jq -r ".result")
-  echo -e "→ Proof: ${YELLOW}$proof${RESET}\n"
-
-  _load_env
-  echo -e "Address:      ${YELLOW}$PUBLIC_KEY${RESET}"
-  echo -e "Block-Number: ${YELLOW}$block${RESET}"
-  echo -e "Proof:        ${YELLOW}$proof${RESET}\n"
-  echo -e "— Use in Discord: /operator start"
-}
-
+get_apprentice() { ... }
 # 3) Register Validator
-register_validator() {
-  echo -e "${GREEN}${BOLD}=== (3) Register Validator ===${RESET}"
-  _load_env
-  [ -z "${RPC_URL:-}" ] && { echo -e "${RED}Config missing; run setup first.${RESET}"; return; }
-  echo -e "→ Registering ${YELLOW}$PUBLIC_KEY${RESET} on L1..."
-  aztec add-l1-validator \
-    --l1-rpc-urls "$RPC_URL" \
-    --private-key "$PRIVATE_KEY" \
-    --attester "$PUBLIC_KEY" \
-    --proposer-eoa "$PUBLIC_KEY" \
-    --staking-asset-handler 0xF739D03e98e23A7B65940848aBA8921fF3bAc4b2 \
-    --l1-chain-id 11155111
-  echo -e "${GREEN}Registration TX sent.${RESET}\n"
-}
-
+register_validator() { ... }
 # 4) Stop Node
-stop_node() {
-  echo -e "${GREEN}${BOLD}=== (4) Stop Node ===${RESET}"
-  echo -e "→ Killing screen '${YELLOW}$SCREEN_NAME${RESET}'..."
-  screen -S "$SCREEN_NAME" -X quit || true
-  echo -e "→ Stopping Docker proxies..."
-  docker ps -q --filter "ancestor=aztecprotocol/aztec" | xargs -r docker stop | xargs -r docker rm
-  echo -e "${GREEN}Node stopped.${RESET}\n"
-}
-
+stop_node() { ... }
 # 5) Restart Node
-restart_node() {
-  echo -e "${GREEN}${BOLD}=== (5) Restart Node ===${RESET}"
-  stop_node
-  _load_env
-  echo -e "→ Launching in screen '${YELLOW}$SCREEN_NAME${RESET}'..."
-  screen -dmS "$SCREEN_NAME" bash -c "\
-aztec start --node --archiver --sequencer \
-  --network alpha-testnet \
-  --port 8080 \
-  --l1-rpc-urls '$RPC_URL' \
-  --l1-consensus-host-urls '$RPC_BEACON_URL' \
-  --sequencer.validatorPrivateKey '$PRIVATE_KEY' \
-  --sequencer.coinbase '$PUBLIC_KEY' \
-  --p2p.p2pIp '$P2P_IP' \
-  --p2p.maxTxPoolSize 1000000000 > $LOG_FILE 2>&1"
-  echo -e "${GREEN}Node restarted.${RESET}\n"
-}
-
+restart_node() { ... }
 # 6) Change RPC
-change_rpc() {
-  echo -e "${GREEN}${BOLD}=== (6) Change RPC ===${RESET}"
-  _load_env
-  echo -n "→ New execution RPC URL: " && read -r RPC_URL
-  echo -n "→ New beacon RPC URL:    " && read -r RPC_BEACON_URL
-  _save_env
-  echo -e "${GREEN}RPC updated.${RESET}\n"
-  restart_node
-}
-
+change_rpc() { ... }
 # 7) Delete Node Data
-delete_node_data() {
-  echo -e "${GREEN}${BOLD}=== (7) Delete Node Data ===${RESET}"
-  stop_node
-  echo -e "→ Removing local chain data..."
-  rm -rf "$ARCHIVE_DATA_DIR"
-  echo -e "${GREEN}Data wiped.${RESET}\n"
-  restart_node
-}
-
+delete_node_data() { ... }
 # 8) Full Clean
-delete_full_node() {
-  echo -e "${GREEN}${BOLD}=== (8) Delete Full Node ===${RESET}"
-  stop_node
-  echo -e "→ Removing Aztec CLI & data..."
-  rm -rf "$HOME/.aztec"
-  echo -e "→ Removing guides, logs, config..."
-  rm -rf "aztec-network" "$ENV_FILE" "$LOG_FILE"
-  echo -e "${GREEN}Full cleanup done.${RESET}\n"
-}
-
+delete_full_node() { ... }
 # 9) Reinstall Node
-reinstall_node() {
-  echo -e "${GREEN}${BOLD}=== (9) Reinstall Validator Node ===${RESET}"
-  stop_node
-  echo -e "→ Killing leftover docker-proxy..."
-  pkill -f docker-proxy || true
-  echo -e "→ Removing data & config..."
-  rm -rf "$ARCHIVE_DATA_DIR" "$ENV_FILE" "$LOG_FILE"
-  setup
-}
-
+reinstall_node() { ... }
 # 10) Git Pull
-git_pull() {
-  echo -e "${GREEN}${BOLD}=== (10) Git Pull ===${RESET}"
-  if [ -d "aztec-network" ]; then
-    echo -e "→ Pulling latest changes in aztec-network..."
-    git -C aztec-network pull --ff-only
-    echo -e "${GREEN}Repository updated.${RESET}\n"
-  else
-    echo -e "${RED}Directory 'aztec-network' not found.${RESET}\n"
-  fi
-}
-
-# 0) Show Logs\show_logs() {
-  echo -e "${GREEN}${BOLD}=== (0) Show Logs / Attach Screen ===${RESET}"
-  if screen -list | grep -q "$SCREEN_NAME"; then
-    echo -e "Attaching to screen '${YELLOW}$SCREEN_NAME${RESET}' (Ctrl-A D to detach)..."
-    screen -r "$SCREEN_NAME"
-  else
-    echo -e "No screen session. Tailing ${YELLOW}$LOG_FILE${RESET}..."
-    tail -f "$LOG_FILE"
-  fi
-}
+git_pull() { ... }
+# 0) Show Logs
+show_logs() { ... }
 
 # Main menu
 print_banner
