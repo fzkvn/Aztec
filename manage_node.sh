@@ -24,30 +24,39 @@ EOF
 }
 
 install_dependencies() {
-  # Wait for any other apt/dpkg processes to finish
-  echo "Waiting for other package managers to finish..."
-  while sudo lsof /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || sudo lsof /var/lib/apt/lists/lock >/dev/null 2>&1; do
-    sleep 1
+  echo "Checking for package manager locks and terminating any blocking processes..."
+  # Detect and kill processes holding apt/dpkg locks
+  for lock in /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock; do
+    if sudo lsof "$lock" >/dev/null 2>&1; then
+      pids=$(sudo lsof -t "$lock")
+      echo -e "${YELLOW}Killing processes holding $lock: $pids${RESET}"
+      sudo kill -9 $pids || true
+    fi
   done
 
+  echo "Updating package lists and upgrading existing packages..."
   sudo apt-get update && sudo apt-get upgrade -y
-  sudo apt install -y curl iptables build-essential git wget lz4 jq make gcc nano automake autoconf tmux htop nvme-cli libgbm1 pkg-config libssl-dev libleveldb-dev tar clang bsdmainutils ncdu unzip
+  echo "Installing core dependencies..."
+  sudo apt install -y \
+    curl iptables build-essential git wget lz4 jq make gcc nano automake autoconf tmux htop \
+    nvme-cli libgbm1 pkg-config libssl-dev libleveldb-dev tar clang bsdmainutils ncdu unzip
 
-  # Clean up old docker packages if present
+  # Clean up old Docker packages if present
+  echo "Removing conflicting Docker packages if any..."
   for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do
     sudo apt-get remove -y "$pkg" || true
   done
 
-  # Install Docker
+  echo "Setting up Docker repository and installing Docker engine..."
   sudo apt-get install -y ca-certificates curl gnupg
   sudo install -m 0755 -d /etc/apt/keyrings
   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
   sudo chmod a+r /etc/apt/keyrings/docker.gpg
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-    $(. /etc/os-release && echo $VERSION_CODENAME) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-  sudo apt-get update && sudo apt-get upgrade -y
-  sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+    https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" \
+    | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+  sudo apt-get update && sudo apt-get install -y \
+    docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
   sudo systemctl enable docker.service || true
   sudo systemctl restart docker.service || true
 }
@@ -99,7 +108,7 @@ get_apprentice() {
     http://localhost:8080 | jq -r .result.proven.number)
   proof=$(curl -s -X POST -H 'Content-Type: application/json' \
     -d "{\"jsonrpc\":\"2.0\",\"method\":\"node_getArchiveSiblingPath\",\"params\":[\"$block\",\"$block\"],\"id\":1}" \
-    http://localhost:8080 | jq -r ..result)
+    http://localhost:8080 | jq -r .result)
   echo -e "Address:      ${YELLOW}$PUBLIC_KEY${RESET}"
   echo -e "Block-Number: ${YELLOW}$block${RESET}"
   echo -e "Proof:        ${YELLOW}$proof${RESET}"
@@ -136,7 +145,6 @@ full_clean() {
   rm -rf "$HOME/.aztec" "$ENV_FILE"
 }
 
-# Reinstall Node (stop, full clean, then setup)
 reinstall_node() {
   stop_node
   full_clean
