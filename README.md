@@ -109,17 +109,12 @@ When prompted for your **Validator PRIVATE key**, the script uses hidden input (
 - **Get Role Apprentice Not Returning Block / Proof****:
   - **Solution:** If option **2) Get Role Apprentice** fails to fetch the latest block or proof, run **9) Reinstall Node** to reset and then rerun option **2**.
 
----
-
 - **Block Stream Stuck (“world block stream issue”)**:
   - **Solution:** Choose option **7) Delete Node Data** (`wipe_data`). This removes only the local blockchain data while preserving your config, allowing a fresh sync without a full reinstall.
 
 - **Proof Too Old / RPC Errors**:
   - **Solution 1:** Choose option **6) Change RPC** and enter a new, healthy RPC endpoint (e.g., a paid Ankr or free DRPC) to refresh and retrieve up‑to‑date proofs.
   - **Solution 2:** Use **9) Reinstall Node** to fully stop, clean, and set up again, then provide a new, reliable RPC URL during setup.
-
-- **Get Role Apprentice Not Returning Block / Proof**:
-  - **Solution:** If option **2) Get Role Apprentice** fails to fetch the latest block or proof, run **9) Reinstall Node** to reset and then rerun option **2**.
 
 ---
 
