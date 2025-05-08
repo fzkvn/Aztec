@@ -1,106 +1,18 @@
-```bash
 #!/usr/bin/env bash
-# manage_node.sh – All-in-one Aztec Alpha-Testnet Validator Manager
+# manage_node.sh — All-in-one Aztec Alpha-Testnet Validator Manager
+# by KEVIN
 
 set -euo pipefail
 
-# === Dependency Check ===
-# Ensure required commands are installed: git, curl, screen, docker, jq
-RED="\033[0;31m"
-GREEN="\033[0;32m"
-YELLOW="\033[1;33m"
-RESET="\033[0m"
-missing=false
-for cmd in git curl screen docker jq; do
-  if ! command -v "$cmd" >/dev/null 2>&1; then
-    missing=true
-    echo -e "${YELLOW}Dependency '$cmd' not found.${RESET}"
-    read -rp "Install '$cmd' now? [Y/n] " ans
-    ans=${ans:-Y}
-    if [[ "$ans" =~ ^[Yy]$ ]]; then
-      if command -v apt-get >/dev/null 2>&1; then
-        sudo apt-get update && sudo apt-get install -y "$cmd"
-      elif command -v yum >/dev/null 2>&1; then
-        sudo yum install -y "$cmd"
-      else
-        echo -e "${RED}No supported package manager found. Please install '$cmd' manually.${RESET}" >&2
-        exit 1
-      fi
-    else
-      echo -e "${RED}Cannot continue without '$cmd'. Exiting.${RESET}" >&2
-      exit 1
-    fi
-  fi
-done
-if [ "$missing" = false ]; then
-  echo -e "${GREEN}All dependencies are present.${RESET}"
-fi
+# Colors
+RED=$'\e[0;31m'; GREEN=$'\e[0;32m'; YELLOW=$'\e[1;33m'; CYAN=$'\e[0;36m'; BOLD=$'\e[1m'; RESET=$'\e[0m'
 
-# ANSI colors
-BLUE="\033[0;34m"
-BOLD="\033[1m"
-RESET="\033[0m"
-
-# Globals
-SCREEN_NAME="aztec"
 ENV_FILE=".env"
-LOG_FILE="aztec_node.log"
-ARCHIVE_DATA_DIR="$HOME/.aztec/alpha-testnet/data"
+DATA_DIR="$HOME/.aztec/alpha-testnet/data"
 
-# Print ASCII banner by KEVIN
-print_banner() {
-  cat <<'EOF'
-   .  . .  .  . .  .  . .  .  . .  . . .  .  . .  .  . .  .  . .  .  .
-   .       .       .       .    .. :: . .       .       .       .     
-     .  .    .  .    .  .    .  tX8SX@8t . .  .   . .     . .     . . 
- .       .       .       .    .:X    ..S..            .       .       
-   .  .    .  .    .  .    . . 8.    . ;: . .  . .  .   . .    . .  . 
-  .    .  .    .  .    .  .  . 8. .   .%;.    .       .     .         
-    .       .       .        . 8.     .tt .      . .    .    .  . . . 
-  .   . .    .  .    .  .  . . 8. .   .t% . .  .     .    .           
-    .     .    .  .    .     . 8     ..;X .   .   .    .   .  . .  .  
-  .    .   .       .     . . ..@      .:X .     .   .    .           .
-     .   .   .  .   . .      . S      .:@ . .     .   .     . .  . .  
-  .    .      .   . .   .  . . t .     .8 .   . .       .  .          
-    .     . .   .        .  .. : .     .8.. .      . .   .    . .  .  
-  .   .            . . .. .  :   .      8 .   .  .     .    .       . 
-    .   . .  . .     ..  tSS.. : .      8 ... .    .  .   .    . .    
-  .         .    . . .t;%t;;S .; .      @ .::... .      .    .     .  
-     . .  .    .   .  ..:.....t: .      8S8:;t8t ;. .      .    .   . 
-  .          .    . :8 .... ..t; ..     8  ::: .:.. .. .  .   .   .   
-    .  . . .    . . ;S .    . XS .      St . .  ..@ :       .   .    .
-  .           . . :;.@ .    . @@ ..   . ;8.     :;8.X. . .    .    .  
-    . .  .  . .. S8X   .    . @8 ..   . ;@ .   @8. S      .      .    
-  .       . . ;:% . :@ .    . 88 .    . :X   . : .8::@.;;: . .     .  
-     . .   .8 S  .. 8: .      @@ ..   . .X    .8. ;. X; ;t .   .     .
-  .      ..;...   ..%% .     .t8 .    . %X ..  8  @  8;.@.   .   . .  
-    .  .. S...  ..8  ; .       X .    . 8X . .. % X ..:.8 ..   .      
-  .     . t.... X@ %8@ .     ...      . XS .  .:.8. ...t;.        .  .
-    . . . .8    ... .t..      .       . S  .   . :S....:  . . . .     
-  .      ..% .  ..S@S S@..........  ..:.%....  ...tX ::.8t.       . . 
-     .  .  tS . . ; .;t:S8@8.:: 8   8:8S. S.S8888t.X :S. . : .. . .  .
-  .       . ; .   :8      . @t%X ...   .X.  .@X :.. X;X;.. ..  . . . .
-    . .  ...8 .  ..8;; .. .. .8 ...@8... XX:.... tX@;8 .S: . . .  . . 
-  .     . . 8;....X 8:8 .  .  8 ...t 8 . :@..  .SX: ...;8.. . . . . . 
-     .     . 8.. S8S   8   . 8@:.. 8 8 .   .... X@   ..   . .  . . . .
-  .    .     ;:%;:. ..8t...  :88.. 8.X ..88 .. 8t:  ..;t . . . . . . .
-   .  .  . .  . %X.... S :....t  . S;:..;8   ..@@ . :@:.. . . . . . . 
-               . ;  .. .S.  ..:8.:. %. .@@ .. t8: ..  . . . . . . .  .
- .  .  .  .  .  ...888..    . 8..: 88..   ... :::.8%... .  . . . . . .
-   .    .          .  8X.  .:. :::.XX ..;. .. .:@@:. . . . . .  . . . 
-     .    . . .       : tS.:t%: %;..  :.:@XSX%:t: . . . . . . . . . .
- .    .         . .     ..tt:  . .X88X;. .. :;.... . . . . . . . . . .
-   .    .  .  .     .  .    .     . ..  .        . .  . . . . . . . . 
-EOF
-}
+load_env() { [ -f "$ENV_FILE" ] && . "$ENV_FILE"; }
 
-# Load .env if exists
-_load_env() {
-  [ -f "$ENV_FILE" ] && . "$ENV_FILE"
-}
-
-# Save config to .env
-_save_env() {
+save_env() {
   cat > "$ENV_FILE" <<EOF
 RPC_URL="$RPC_URL"
 RPC_BEACON_URL="$RPC_BEACON_URL"
@@ -111,96 +23,138 @@ EOF
   chmod 600 "$ENV_FILE"
 }
 
-# Ensure jq is installed (used by get_apprentice)
-_require_jq() {
-  if ! command -v jq >/dev/null 2>&1; then
-    echo -e "${YELLOW}Installing jq...${RESET}"
-    if command -v apt-get >/dev/null 2>&1; then
-      sudo apt-get update && sudo apt-get install -y jq
-    elif command -v yum >/dev/null 2>&1; then
-      sudo yum install -y jq
-    else
-      echo -e "${RED}Please install 'jq' manually.${RESET}" >&2
-      exit 1
-    fi
-  fi
+install_dependencies() {
+  sudo apt-get update && sudo apt-get upgrade -y
+  sudo apt install -y curl iptables build-essential git wget lz4 jq make gcc nano automake autoconf tmux htop nvme-cli libgbm1 pkg-config libssl-dev libleveldb-dev tar clang bsdmainutils ncdu unzip
+  for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do
+    sudo apt-get remove -y "$pkg" || true
+  done
+  sudo apt-get install -y ca-certificates curl gnupg
+  sudo install -m 0755 -d /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  sudo chmod a+r /etc/apt/keyrings/docker.gpg
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+  sudo apt-get update && sudo apt-get upgrade -y
+  sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  sudo systemctl enable docker.service || true
+  sudo systemctl restart docker.service || true
 }
 
-# 1) Setup Node Validator
+stop_node() {
+  pkill -f "aztec start" || true
+  docker ps -q --filter ancestor=aztecprotocol/aztec | xargs -r docker stop | xargs -r docker rm
+}
+
+start_node() {
+  load_env
+  exec aztec start --node --archiver --sequencer \
+    --network alpha-testnet \
+    --l1-rpc-urls "$RPC_URL" \
+    --l1-consensus-host-urls "$RPC_BEACON_URL" \
+    --sequencer.validatorPrivateKey "$PRIVATE_KEY" \
+    --sequencer.coinbase "$PUBLIC_KEY" \
+    --p2p.p2pIp "$P2P_IP" \
+    --p2p.maxTxPoolSize 1000000000
+}
+
+restart_node() {
+  stop_node
+  start_node
+}
+
 setup() {
-  echo -e "${GREEN}${BOLD}=== (1) Setup Node Validator ===${RESET}"
-  
-  # Install Aztec CLI if missing
-  if ! command -v aztec >/dev/null 2>&1; then
-    echo -e "${YELLOW}Installing Aztec CLI...${RESET}"
+  install_dependencies
+  if ! command -v aztec &>/dev/null; then
     curl -sSf https://install.aztec.network | bash
     export PATH="$HOME/.aztec/bin:$PATH"
   fi
-  echo -e "${YELLOW}Switching to alpha-testnet...${RESET}"
   aztec-up alpha-testnet
 
-  # Prompt for config
-  echo -n "→ Sepolia execution RPC URL: " && read -r RPC_URL
-  echo -n "→ Sepolia beacon RPC URL:     " && read -r RPC_BEACON_URL
-  echo -n "→ Validator PUBLIC key:       " && read -r PUBLIC_KEY
-  echo -n "→ Validator PRIVATE key:      " && stty -echo; read -r PRIVATE_KEY; stty echo; echo
+  read -rp "Sepolia RPC URL: " RPC_URL
+  read -rp "Sepolia Beacon URL: " RPC_BEACON_URL
+  read -rp "Validator PUBLIC key: " PUBLIC_KEY
+  read -rsp "Validator PRIVATE key: " PRIVATE_KEY; echo
+  P2P_IP=$(curl -sS ipv4.icanhazip.com || read -rp "Public IP: " P2P_IP)
 
-  # Detect public IP
-  P2P_IP=$(curl -sS ipv4.icanhazip.com || echo "")
-  [ -z "$P2P_IP" ] && { echo -n "→ Public IP: "; read -r P2P_IP; }
-
-  _save_env
-  echo -e "${GREEN}Configuration saved to $ENV_FILE${RESET}\n"
-
-  echo -e "${YELLOW}Starting node now...${RESET}"
-  restart_node
-  echo -e "${GREEN}Node started. Logs at $LOG_FILE${RESET}\n"
+  save_env
+  start_node
 }
 
-# 2) Get Role Apprentice
-get_apprentice() { ... }
-# 3) Register Validator
-register_validator() { ... }
-# 4) Stop Node
-stop_node() { ... }
-# 5) Restart Node
-restart_node() { ... }
-# 6) Change RPC
-change_rpc() { ... }
-# 7) Delete Node Data
-delete_node_data() { ... }
-# 8) Full Clean
-delete_full_node() { ... }
-# 9) Reinstall Node
-reinstall_node() { ... }
-# 10) Git Pull
-git_pull() { ... }
-# 0) Show Logs
-show_logs() { ... }
+get_apprentice() {
+  load_env
+  block=$(curl -s -X POST -H 'Content-Type: application/json' \
+    -d '{"jsonrpc":"2.0","method":"node_getL2Tips","params":[],"id":1}' \
+    http://localhost:8080 | jq -r .result.proven.number)
+  proof=$(curl -s -X POST -H 'Content-Type: application/json' \
+    -d "{\"jsonrpc\":\"2.0\",\"method\":\"node_getArchiveSiblingPath\",\"params\":[\"$block\",\"$block\"],\"id\":1}" \
+    http://localhost:8080 | jq -r .result)
+  echo -e "Address:      ${YELLOW}$PUBLIC_KEY${RESET}"
+  echo -e "Block-Number: ${YELLOW}$block${RESET}"
+  echo -e "Proof:        ${YELLOW}$proof${RESET}"
+}
 
-# Main menu
-print_banner
-cat <<EOF
-${BOLD}Menu:${RESET}
-${YELLOW}1)${RESET} Setup Node Validator
-${YELLOW}2)${RESET} Get Role Apprentice
-${YELLOW}3)${RESET} Register Validator
-${YELLOW}4)${RESET} Stop Node
-${YELLOW}5)${RESET} Restart Node
-${YELLOW}6)${RESET} Change RPC
-${YELLOW}7)${RESET} Delete Node Data
-${YELLOW}8)${RESET} Full Clean
-${YELLOW}9)${RESET} Reinstall Node
-${YELLOW}10)${RESET} Git Pull
-${YELLOW}0)${RESET} Show Logs / Attach
-${YELLOW}x)${RESET} Exit
-EOF
+register_validator() {
+  load_env
+  aztec add-l1-validator \
+    --l1-rpc-urls "$RPC_URL" \
+    --private-key "$PRIVATE_KEY" \
+    --attester "$PUBLIC_KEY" \
+    --proposer-eoa "$PUBLIC_KEY" \
+    --staking-asset-handler 0xF739D03e98e23A7B65940848aBA8921fF3bAc4b2 \
+    --l1-chain-id 11155111
+}
 
-read -rp "Select [0-10, x]: " choice
+change_rpc() {
+  load_env
+  read -rp "New RPC URL: " RPC_URL
+  read -rp "New Beacon URL: " RPC_BEACON_URL
+  save_env
+  restart_node
+}
+
+wipe_data() {
+  load_env
+  stop_node
+  rm -rf "$DATA_DIR"
+  start_node
+}
+
+full_clean() {
+  stop_node
+  rm -rf "$HOME/.aztec" "$ENV_FILE"
+}
+
+# Reinstall Node (stop, full clean, then setup)
+reinstall_node() {
+  stop_node
+  full_clean
+  setup
+}
+
+echo -e "${CYAN}${BOLD}Aztec Validator Manager${RESET}"
+echo -e "${YELLOW}              by KEVIN${RESET}"
+echo "1) Setup Node Validator"
+echo "2) Get Role Apprentice"
+echo "3) Register Validator"
+echo "4) Stop Node"
+echo "5) Restart Node"
+echo "6) Change RPC"
+echo "7) Delete Node Data"
+echo "8) Full Clean"
+echo "9) Reinstall Node"
+echo "x) Exit"
+read -rp "Select: " choice
+
 case "$choice" in
-  1) setup ;; 2) get_apprentice ;; 3) register_validator ;; 4) stop_node ;;
-  5) restart_node ;; 6) change_rpc ;; 7) delete_node_data ;; 8) delete_full_node ;;
-  9) reinstall_node ;; 10) git_pull ;; 0) show_logs ;; x|X) exit 0 ;;
-  *) echo -e "${RED}Invalid selection.${RESET}"; exit 1 ;;
+  1) setup ;;
+  2) get_apprentice ;;
+  3) register_validator ;;
+  4) stop_node ;;
+  5) restart_node ;;
+  6) change_rpc ;;
+  7) wipe_data ;;
+  8) full_clean ;;
+  9) reinstall_node ;;
+  x|X) exit 0 ;;
+  *) exit 1 ;;
 esac
-```
