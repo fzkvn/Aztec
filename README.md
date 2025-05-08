@@ -22,7 +22,7 @@ chmod +x manage_node.sh
 ./manage_node.sh
 ```
 
-You'll see a colorful menu and your **custom ASCII banner** by KEVIN.
+You'll see a Menu Options, Choose that by type the number and press enter.
 
 ---
 
