@@ -18,6 +18,8 @@ A simple, all-in-one Bash script to install, configure, and manage your **Aztec 
 - **Server Requirements:** Ensure your server meets the minimum requirements for CPU, memory, and storage. If you're all set, proceed; otherwise, reach out and I'll assist you further.
 - **Recommended RPC Endpoints:** For best performance, use a paid Ankr RPC endpoint. If you prefer a free option, try DRPC: https://drpc.org?ref=523696
 
+- **Network Port**: By default, the Aztec node's JSON-RPC API listens on `localhost:8080`. Ensure port 8080 is free and not occupied by another service. If you're running a firewall, allow traffic on this port (or bind to another available port by updating the `start_node()` command accordingly).
+
 ## 🚀 Quick Start
 
 1. **Launch a screen session** (recommended):
@@ -98,11 +100,22 @@ When prompted for your **Validator PRIVATE key**, the script uses hidden input (
 
 ## 🛠️ Common Issues & Solutions
 
+- **Port 8080 Already in Use**:
+  - **Solution:** Choose option **9) Reinstall Node**. This will automatically stop any processes holding port 8080 and restart your node cleanly. Once done, ensure port 8080 is free and rerun option **9** if needed.
+
+- **Block Stream Stuck** (“world block stream issue”)**:
+  - **Solution:** Choose option **7) Delete Node Data** (`wipe_data`). This removes only the local blockchain data while preserving your config, allowing a fresh sync without a full reinstall.
+
+- **Get Role Apprentice Not Returning Block / Proof****:
+  - **Solution:** If option **2) Get Role Apprentice** fails to fetch the latest block or proof, run **9) Reinstall Node** to reset and then rerun option **2**.
+
+---
+
 - **Block Stream Stuck (“world block stream issue”)**:
   - **Solution:** Choose option **7) Delete Node Data** (`wipe_data`). This removes only the local blockchain data while preserving your config, allowing a fresh sync without a full reinstall.
 
 - **Proof Too Old / RPC Errors**:
-  - **Solution 1:** Use option **6) Change RPC** to switch to a healthier RPC endpoint.
+  - **Solution 1:** Choose option **6) Change RPC** and enter a new, healthy RPC endpoint (e.g., a paid Ankr or free DRPC) to refresh and retrieve up‑to‑date proofs.
   - **Solution 2:** Use **9) Reinstall Node** to fully stop, clean, and set up again, then provide a new, reliable RPC URL during setup.
 
 - **Get Role Apprentice Not Returning Block / Proof**:
