@@ -15,6 +15,8 @@ A simple, all-in-one Bash script to install, configure, and manage your **Aztec 
 
 > **Tip:** Use `screen` so your node keeps running even if you disconnect.
 
+- **Server Requirements:** Ensure your server meets the minimum requirements for CPU, memory, and storage. If you're all set, proceed; otherwise, reach out and I'll assist you further.
+- **Recommended RPC Endpoints:** For best performance, use a paid Ankr RPC endpoint. If you prefer a free option, try DRPC: https://drpc.org?ref=523696
 
 ## 🚀 Quick Start
 
@@ -57,43 +59,20 @@ x) Exit
 
 Below is what each option does:
 
-| Option | Command              | Description                                                                                  |
-|:------:|----------------------|----------------------------------------------------------------------------------------------|
-| **1**  | `setup`              | Installs dependencies, Docker, Aztec CLI; configures `.env`; starts your validator node.    |
-| **2**  | `get_apprentice`     | Fetches the latest L2 tip block and proof for your apprentice role.                          |
-| **3**  | `register_validator` | Registers your validator on L1 using your public and private keys.                           |
-| **4**  | `stop_node`          | Stops the local Aztec node process and removes its Docker containers.                        |
-| **5**  | `restart_node`       | Stops then restarts the node, preserving your `.env` settings.                               |
-| **6**  | `change_rpc`         | Prompts to update RPC & Beacon URLs in `.env`, then restarts the node.                       |
-| **7**  | `wipe_data`          | Deletes local blockchain data and restarts the node (fresh sync).                            |
-| **8**  | `full_clean`         | Stops node, removes all Aztec CLI data and `.env` (reset environment).                       |
-| **9**  | `reinstall_node`     | Runs **Stop → Full Clean → Setup** in one step for a full reinstallation.                    |
-| **x**  | Exit                 | Exit the script.                                                                             |
+| Option | Command              | Description                                                                                               |
+|:------:|----------------------|-----------------------------------------------------------------------------------------------------------|
+| **1**  | `setup`              | Installs dependencies, Docker, Aztec CLI; configures `.env`; starts your validator node.                 |
+| **2**  | `get_apprentice`     | Fetches the latest L2 tip block and proof for your apprentice role.                                       |
+| **3**  | `register_validator` | Registers your validator on L1 using your public and private keys.                                        |
+| **4**  | `stop_node`          | Stops the local Aztec node process and removes its Docker containers.                                     |
+| **5**  | `restart_node`       | Stops then restarts the node, preserving your `.env` settings.                                            |
+| **6**  | `change_rpc`         | Prompts to update RPC & Beacon URLs in `.env`, then restarts the node.                                    |
+| **7**  | `wipe_data`          | Deletes local blockchain data and restarts the node (fresh sync).                                          |
+| **8**  | `full_clean`         | Stops node, removes all Aztec CLI data and `.env` (reset environment).                                    |
+| **9**  | `reinstall_node`     | Runs **Stop → Full Clean → Setup** in one step for a full reinstallation.                                 |
+| **x**  | Exit                 | Exit the script.                                                                                          |
 
-
-## ⚙️ Behind the Scenes
-
-- **install_dependencies()**:
-  1. Detects & kills any processes holding **apt** or **dpkg** locks, to avoid hangs.
-  2. Updates package lists and upgrades installed packages.
-  3. Installs core tools: `curl`, `git`, `build-essential`, `tmux`, etc.
-  4. Sets up the official Docker repository and installs Docker Engine.
-
-- **setup()**:
-  1. Calls `install_dependencies()`.
-  2. Installs the Aztec CLI if not present: `curl -sSf https://install.aztec.network | bash`.
-  3. Runs `aztec-up alpha-testnet`.
-  4. Prompts for and saves:
-     - **Sepolia RPC URL**
-     - **Sepolia Beacon URL**
-     - **Validator PUBLIC key**
-     - **Validator PRIVATE key**
-     - **P2P IP** (auto-detected or manually entered)
-  5. Persists credentials in a secured `.env` file.
-  6. Launches the node with your settings.
-
-- **Other Functions** mirror the menu options, handling node stop/restart, data wipe, and validator registration.
-
+---
 
 ## 🔒 Environment File (`.env`)
 
@@ -111,9 +90,23 @@ Keep this file secret! It contains your private key.
 
 ---
 
-## 📝 License
+## 🔑 Secure Input Handling
 
-This project is licensed under the **MIT License**. See [LICENSE](LICENSE) for details.
+When prompted for your **Validator PRIVATE key**, the script uses hidden input (`read -rsp`), so your key will **not** be echoed on-screen. Just paste it once and press **Enter**, and it will be stored securely in `.env`.
+
+---
+
+## 🛠️ Common Issues & Solutions
+
+- **Block Stream Stuck (“world block stream issue”)**:
+  - **Solution:** Choose option **7) Delete Node Data** (`wipe_data`). This removes only the local blockchain data while preserving your config, allowing a fresh sync without a full reinstall.
+
+- **Proof Too Old / RPC Errors**:
+  - **Solution 1:** Use option **6) Change RPC** to switch to a healthier RPC endpoint.
+  - **Solution 2:** Use **9) Reinstall Node** to fully stop, clean, and set up again, then provide a new, reliable RPC URL during setup.
+
+- **Get Role Apprentice Not Returning Block / Proof**:
+  - **Solution:** If option **2) Get Role Apprentice** fails to fetch the latest block or proof, run **9) Reinstall Node** to reset and then rerun option **2**.
 
 ---
 
