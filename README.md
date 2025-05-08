@@ -6,7 +6,7 @@ A single, menu-driven `manage_node.sh` script to **install**, **configure**, **m
 
 ```bash
 # Clone your fork (replace with your GitHub URL if needed)
-git clone https://github.com/your-username/aztec-network.git
+git clone https://github.com/fzkvn/aztec-network.git
 cd aztec-network
 ```
 
