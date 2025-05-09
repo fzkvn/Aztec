@@ -1,180 +1,173 @@
-#!/usr/bin/env bash
-# manage_node.sh — All-in-one Aztec Alpha-Testnet Validator Manager
-# by KEVIN
+# Aztec Network Validator Manager
 
-set -euo pipefail
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![Shell](https://img.shields.io/badge/Shell-Bash-green.svg)](https://www.gnu.org/software/bash/)
 
-# Colors
-RED=$'\e[0;31m'; GREEN=$'\e[0;32m'; YELLOW=$'\e[1;33m'; CYAN=$'\e[0;36m'; BOLD=$'\e[1m'; RESET=$'\e[0m'
+A simple, all-in-one Bash script to install, configure, and manage your **Aztec Alpha-Testnet** validator node.
 
-ENV_FILE=".env"
-DATA_DIR="$HOME/.aztec/alpha-testnet/data"
+---
 
-load_env() { [ -f "$ENV_FILE" ] && . "$ENV_FILE"; }
+## 📋 Prerequisites
 
-save_env() {
-  cat > "$ENV_FILE" <<EOF
-RPC_URL="$RPC_URL"
-RPC_BEACON_URL="$RPC_BEACON_URL"
-PUBLIC_KEY="$PUBLIC_KEY"
-PRIVATE_KEY="$PRIVATE_KEY"
-P2P_IP="$P2P_IP"
-EOF
-  chmod 600 "$ENV_FILE"
-}
+- **OS**: Debian/Ubuntu-based system (tested on 20.04+)
+- **Terminal**: `bash` (v4+) and [`screen`](https://tiswww.case.edu/php/chet/screen/) for a resilient session
+- **Version Control**: `git`
+- **Machine Specs**: 8‑Core CPU, 16 GiB RAM, 1 TB NVMe SSD
+- **Network**: ≥25 Mbps up/down bandwidth (typical consumer desktop or laptop is sufficient)
+- **Server Requirements**: Ensure these specs are met; if not, reach out for assistance.
+- **RPC Endpoint**: For best performance, use a paid Ankr RPC. For a free alternative, try DRPC: https://drpc.org?ref=523696
 
-install_dependencies() {
-  echo "Checking for package manager locks and terminating any blocking processes..."
-  # Detect and kill processes holding apt/dpkg locks
-  for lock in /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock; do
-    if sudo lsof "$lock" >/dev/null 2>&1; then
-      pids=$(sudo lsof -t "$lock")
-      echo -e "${YELLOW}Killing processes holding $lock: $pids${RESET}"
-      sudo kill -9 $pids || true
-    fi
-  done
+> **Tip:** Start in `screen` so your node keeps running even if you disconnect:
+> ```bash
+> screen -S aztec
+> ```
 
-  echo "Updating package lists and upgrading existing packages..."
-  sudo apt-get update && sudo apt-get upgrade -y
-  echo "Installing core dependencies..."
-  sudo apt install -y \
-    curl iptables build-essential git wget lz4 jq make gcc nano automake autoconf tmux htop \
-    nvme-cli libgbm1 pkg-config libssl-dev libleveldb-dev tar clang bsdmainutils ncdu unzip
+---
 
-  # Clean up old Docker packages if present
-  echo "Removing conflicting Docker packages if any..."
-  for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do
-    sudo apt-get remove -y "$pkg" || true
-  done
+## 🚀 Quick Start
 
-  echo "Setting up Docker repository and installing Docker engine..."
-  sudo apt-get install -y ca-certificates curl gnupg
-  sudo install -m 0755 -d /etc/apt/keyrings
-  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-  sudo chmod a+r /etc/apt/keyrings/docker.gpg
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-    https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" \
-    | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-  sudo apt-get update && sudo apt-get install -y \
-    docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-  sudo systemctl enable docker.service || true
-  sudo systemctl restart docker.service || true
-}
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/fzkvn/aztec-network.git
+   cd aztec-network
+   ```
+2. **Make the manager script executable**:
+   ```bash
+   chmod +x manage_node.sh
+   ```
+3. **Run the manager**:
+   ```bash
+   ./manage_node.sh
+   ```
 
-stop_node() {
-  pkill -f "aztec start" || true
-  docker ps -q --filter ancestor=aztecprotocol/aztec | xargs -r docker stop | xargs -r docker rm
-}
+---
 
-start_node() {
-  load_env
-  exec aztec start --node --archiver --sequencer \
-    --network alpha-testnet \
-    --l1-rpc-urls "$RPC_URL" \
-    --l1-consensus-host-urls "$RPC_BEACON_URL" \
-    --sequencer.validatorPrivateKey "$PRIVATE_KEY" \
-    --sequencer.coinbase "$PUBLIC_KEY" \
-    --p2p.p2pIp "$P2P_IP" \
-    --p2p.maxTxPoolSize 1000000000
-}
+## 📖 Menu & Commands
 
-restart_node() {
-  stop_node
-  start_node
-}
+Upon running `./manage_node.sh`, you’ll see:
 
-setup() {
-  install_dependencies
-  if ! command -v aztec &>/dev/null; then
-    curl -sSf https://install.aztec.network | bash
-    export PATH="$HOME/.aztec/bin:$PATH"
-  fi
-  aztec-up alpha-testnet
+```
+1) Setup Node Validator
+2) Get Role Apprentice
+3) Register Validator
+4) Stop Node
+5) Restart Node
+6) Change RPC
+7) Delete Node Data
+8) Full Clean
+9) Reinstall Node
+x) Exit
+```
 
-  read -rp "Sepolia RPC URL: " RPC_URL
-  read -rp "Sepolia Beacon URL: " RPC_BEACON_URL
-  read -rp "Validator PUBLIC key: " PUBLIC_KEY
-  read -rsp "Validator PRIVATE key: " PRIVATE_KEY; echo
-  P2P_IP=$(curl -sS ipv4.icanhazip.com || read -rp "Public IP: " P2P_IP)
+| Option | Command              | Description                                                                                 |
+|:------:|----------------------|---------------------------------------------------------------------------------------------|
+| **1**  | `setup`              | Installs dependencies, Docker, Aztec CLI; saves `.env`; starts your validator node.         |
+| **2**  | `get_apprentice`     | Fetches the latest L2 tip block and proof.                                                 |
+| **3**  | `register_validator` | Registers your validator on L1 with your keys.                                             |
+| **4**  | `stop_node`          | Stops the Aztec node process and removes Docker containers.                                 |
+| **5**  | `restart_node`       | Restarts your node, preserving config.                                                      |
+| **6**  | `change_rpc`         | Updates RPC/Beacon URLs in `.env`, then restarts the node.                                 |
+| **7**  | `wipe_data`          | Deletes local chain data only, allowing a fresh sync without full reinstall.                |
+| **8**  | `full_clean`         | Stops node and removes all Aztec CLI data plus `.env` (complete reset).                    |
+| **9**  | `reinstall_node`     | Runs **Stop → Full Clean → Setup**, automatically clearing port locks and reinstalling.    |
+| **x**  | Exit                 | Exit the script.                                                                            |
 
-  save_env
-  start_node
-}
+---
 
-get_apprentice() {
-  load_env
-  block=$(curl -s -X POST -H 'Content-Type: application/json' \
-    -d '{"jsonrpc":"2.0","method":"node_getL2Tips","params":[],"id":1}' \
-    http://localhost:8080 | jq -r .result.proven.number)
-  proof=$(curl -s -X POST -H 'Content-Type: application/json' \
-    -d "{\"jsonrpc\":\"2.0\",\"method\":\"node_getArchiveSiblingPath\",\"params\":[\"$block\",\"$block\"],\"id\":1}" \
-    http://localhost:8080 | jq -r .result)
-  echo -e "Address:      ${YELLOW}$PUBLIC_KEY${RESET}"
-  echo -e "Block-Number: ${YELLOW}$block${RESET}"
-  echo -e "Proof:        ${YELLOW}$proof${RESET}"
-}
+## 🤔 FAQ
 
-register_validator() {
-  load_env
-  aztec add-l1-validator \
-    --l1-rpc-urls "$RPC_URL" \
-    --private-key "$PRIVATE_KEY" \
-    --attester "$PUBLIC_KEY" \
-    --proposer-eoa "$PUBLIC_KEY" \
-    --staking-asset-handler 0xF739D03e98e23A7B65940848aBA8921fF3bAc4b2 \
-    --l1-chain-id 11155111
-}
+### Log-Streaming Options
+Options **1 (Setup Node Validator)**, **5 (Restart Node)**, **6 (Change RPC)**, and **9 (Reinstall Node)** must be run **inside** your `aztec` screen session so you can view real-time logs.
 
-change_rpc() {
-  load_env
-  read -rp "New RPC URL: " RPC_URL
-  read -rp "New Beacon URL: " RPC_BEACON_URL
-  save_env
-  restart_node
-}
+### Updating RPC, Restart, or Reinstall
+If your node is already running, first **stop** it by selecting **4) Stop Node** **outside** the screen session:
+```bash
+# In your host shell (outside screen)
+./manage_node.sh
+# Select option 4 (Stop Node)
+```
+Then **attach** to your `aztec` screen session:
+```bash
+screen -r aztec
+```
+And choose:
+- **6) Change RPC** to update endpoints
+- **5) Restart Node** to restart
+- **9) Reinstall Node** for a full reinstallation
 
-wipe_data() {
-  load_env
-  stop_node
-  rm -rf "$DATA_DIR"
-  start_node
-}
+These options will then stream logs directly in-screen.
 
-full_clean() {
-  stop_node
-  rm -rf "$HOME/.aztec" "$ENV_FILE"
-}
+### Registering Without Stopping
+For **2) Get Role Apprentice** and **3) Register Validator**, you **do not** need to stop the node. You can run these options outside the `aztec` screen session:
+```bash
+./manage_node.sh
+# Select option 2 or 3
+```
 
-reinstall_node() {
-  stop_node
-  full_clean
-  setup
-}
+---
 
-echo -e "${CYAN}${BOLD}Aztec Validator Manager${RESET}"
-echo -e "${YELLOW}              by KEVIN${RESET}"
-echo "1) Setup Node Validator"
-echo "2) Get Role Apprentice"
-echo "3) Register Validator"
-echo "4) Stop Node"
-echo "5) Restart Node"
-echo "6) Change RPC"
-echo "7) Delete Node Data"
-echo "8) Full Clean"
-echo "9) Reinstall Node"
-echo "x) Exit"
-read -rp "Select: " choice
+## 🔒 Environment File (`.env`)
 
-case "$choice" in
-  1) setup ;;
-  2) get_apprentice ;;
-  3) register_validator ;;
-  4) stop_node ;;
-  5) restart_node ;;
-  6) change_rpc ;;
-  7) wipe_data ;;
-  8) full_clean ;;
-  9) reinstall_node ;;
-  x|X) exit 0 ;;
-  *) exit 1 ;;
-esac
+Created at repo root during setup:
+
+```ini
+RPC_URL="<YOUR_SEPOLIA_RPC_URL>"
+RPC_BEACON_URL="<YOUR_BEACON_RPC_URL>"
+PUBLIC_KEY="<YOUR_VALIDATOR_PUBLIC_KEY>"
+PRIVATE_KEY="<YOUR_VALIDATOR_PRIVATE_KEY>"
+P2P_IP="<YOUR_NODE_IP>"
+```
+
+Keep this file secure—**it contains your private key**.
+
+---
+
+## 🔑 Secure Input Handling
+
+When entering your **Validator PRIVATE key**, the script uses hidden input (`read -rsp`), so it will **not** be echoed on-screen. Just paste once and press **Enter**.
+
+---
+
+## 🛠️ Common Issues & Solutions
+
+- **Port 8080 In Use**:
+  - If the JSON-RPC port (8080) is occupied, choose **9) Reinstall Node**, which will clear the lock and restart on a clean port.
+
+- **Stuck Block Stream**:
+  - Choose **7) Delete Node Data** to remove only the local chain data for a fresh sync without losing your config.
+
+- **Old Proof / RPC Errors**:
+  - Choose **6) Change RPC** and provide a new RPC URL (Ankr or DRPC) to refresh proofs.
+
+- **Get Role Apprentice Missing Data**:
+  - If option **2** fails, run **9) Reinstall Node** to reset and retry.
+
+- **P2P “goodbye” Error Message**:
+  - If you see a `p2p error in with aztec/req/goodbye`, your node is fine—this is a benign message.
+
+---
+
+## ⚙️ Behind the Scenes
+
+- **install_dependencies()**:
+  1. Detects and kills any processes locking **apt** or **dpkg**.
+  2. Updates packages and installs core tools (`curl`, `git`, `tmux`, etc.).
+  3. Sets up the official Docker repo and installs Docker Engine.
+
+- **setup()**:
+  1. Runs `install_dependencies()`.
+  2. Installs Aztec CLI via `curl -sSf https://install.aztec.network | bash`.
+  3. Executes `aztec-up alpha-testnet`.
+  4. Prompts and saves your RPC, Beacon URL, public/private keys, and P2P IP to `.env`.
+  5. Launches the node with these settings.
+
+- **Other Functions** handle node stop/restart, data wipe, and validator registration as per the menu.
+
+---
+
+## 📝 License
+
+Licensed under the **MIT License**. See [LICENSE](LICENSE) for details.
+
+---
+
+*Happy validating!* 😀
