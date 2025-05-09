@@ -58,6 +58,14 @@ Upon running `./manage_node.sh`, you’ll see:
 x) Exit
 ```
 
+4. Choose "**1) Setup Node Validator**" your node will running, It takes a few minutes for your node to get synced.
+
+
+5. **Minimze screen**
+   Press Ctrl + A + D on keyboard
+
+   
+
 | Option | Command              | Description                                                                                 |
 |:------:|----------------------|---------------------------------------------------------------------------------------------|
 | **1**  | `setup`              | Installs dependencies, Docker, Aztec CLI; saves `.env`; starts your validator node.         |
@@ -70,6 +78,38 @@ x) Exit
 | **8**  | `full_clean`         | Stops node and removes all Aztec CLI data plus `.env` (complete reset).                    |
 | **9**  | `reinstall_node`     | Runs **Stop → Full Clean → Setup**, automatically clearing port locks and reinstalling.    |
 | **x**  | Exit                 | Exit the script.                                                                            |
+
+---
+
+## 🤔 FAQ
+
+### Log-Streaming Options
+Options **1 (Setup Node Validator)**, **5 (Restart Node)**, **6 (Change RPC)**, and **9 (Reinstall Node)** must be run **inside** your `aztec` screen session so you can view real-time logs.
+
+### Updating RPC, Restart, or Reinstall
+If your node is already running, first **stop** it by selecting **4) Stop Node** **outside** the screen session:
+```bash
+# In your host shell (outside screen)
+./manage_node.sh
+# Select option 4 (Stop Node)
+```
+Then **attach** to your `aztec` screen session:
+```bash
+screen -r aztec
+```
+And choose:
+- **6) Change RPC** to update endpoints
+- **5) Restart Node** to restart
+- **9) Reinstall Node** for a full reinstallation
+
+These options will then stream logs directly in-screen.
+
+### Registering Without Stopping
+For **2) Get Role Apprentice** and **3) Register Validator**, you **do not** need to stop the node. You can run these options inside or outside the `aztec` screen session:
+```bash
+./manage_node.sh
+# Select option 2 or 3
+```
 
 ---
 
