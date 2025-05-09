@@ -105,7 +105,7 @@ And choose:
 These options will then stream logs directly in-screen.
 
 ### Registering Without Stopping
-For **2) Get Role Apprentice** and **3) Register Validator**, you **do not** need to stop the node. You can run these options inside or outside the `aztec` screen session:
+For **2) Get Role Apprentice** and **3) Register Validator**, you **do not** need to stop the node. You can run these options outside the `aztec` screen session:
 ```bash
 ./manage_node.sh
 # Select option 2 or 3
@@ -141,11 +141,12 @@ When entering your **Validator PRIVATE key**, the script uses hidden input (`rea
   - If the JSON-RPC port (8080) is occupied, choose **9) Reinstall Node**, which will clear the lock and restart on a clean port.
 
 - **Stuck Block Stream**:
-  - Choose **7) Delete Node Data** to remove only the local chain data for a fresh sync without losing your config.
+  - Choose **7) Delete Node Data** to remove only the local chain data for a fresh sync without losing your config. But its prefer to do **9) Reinstall Node**, which will clear the lock and restart on a clean data.
 
 - **Old Proof / RPC Errors**:
   - Choose **6) Change RPC** and provide a new RPC URL (Ankr or DRPC) to refresh proofs.
-
+  - If option **6** fails, run **9) Reinstall Node**, which will clear the lock and restart on a clean data.
+    
 - **Get Role Apprentice Missing Data**:
   - If option **2** fails, run **9) Reinstall Node** to reset and retry.
 
