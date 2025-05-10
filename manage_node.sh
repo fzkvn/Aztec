@@ -74,8 +74,7 @@ start_node() {
     --l1-consensus-host-urls "$RPC_BEACON_URL" \
     --sequencer.validatorPrivateKey "$PRIVATE_KEY" \
     --sequencer.coinbase "$PUBLIC_KEY" \
-    --p2p.p2pIp "$P2P_IP" \
-    --p2p.maxTxPoolSize 1000000000
+    --p2p.p2pIp "$P2P_IP"
 }
 
 restart_node() {
