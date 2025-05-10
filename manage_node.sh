@@ -115,7 +115,7 @@ get_apprentice() {
 
 register_validator() {
   load_env
-  aztec add-l1-validator \
+  exec aztec add-l1-validator \
     --l1-rpc-urls "$RPC_URL" \
     --private-key "$PRIVATE_KEY" \
     --attester "$PUBLIC_KEY" \
