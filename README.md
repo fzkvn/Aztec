@@ -61,8 +61,32 @@ x) Exit
 4. Choose "**1) Setup Node Validator**" your node will running, It takes a few minutes for your node to get synced.
 
 
+   ![image](https://github.com/user-attachments/assets/e57e3bc1-5d14-4074-b029-641adcaaa26e)
+
+
+
 5. **Minimze screen**
    Press Ctrl + A + D on keyboard
+
+6. **Get Role Apprentice**
+   Do this oustide screen or after you already minimize the screen, and the node already sync like picture on point 4.
+   ```bash
+   cd ~/aztec-network
+   ./manage_node.sh
+   ```
+   Then choose 2) Get Role Apprentice. Then you will get response like this:
+
+
+   ![image](https://github.com/user-attachments/assets/f98eaa14-7450-4636-afc5-e59e5a079f15)
+
+
+   Just copy that and paste that on discord chanel
+   do **/operator start** at channel **operators | start-here**
+   then it will be like this
+   ```bash
+   /operator start address: block-number: proof:
+    ```
+   if success you will be get Apprentice role.
 
    
 
